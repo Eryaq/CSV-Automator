@@ -7,12 +7,13 @@ A C# .NET 10 application designed to automate repetitive CSV data processing tas
 The goal of CSV Automator is to help businesses save time by automating CSV file merging, validation, and export.
 
 ## Planned Features
-
-- [ ] Load CSV files from a selected folder
-- [ ] Merge multiple CSV files with matching headers
-- [ ] Validate input files and handle errors
+- [x] Load CSV data from a local file
+- [x] Parse CSV headers and order records
+- [x] Validate order IDs, customer names, and amounts
+- [x] Skip invalid rows with warning messages
+- [ ] Merge multiple CSV files
 - [ ] Export processed data into a new CSV file
-- [ ] Add a simple graphical user interface
+- [ ] Add a graphical user interface
 
 ## Tech Stack
 
@@ -23,7 +24,11 @@ The goal of CSV Automator is to help businesses save time by automating CSV file
 
 ## Current Status
 
-Early development. The initial console application is working, but CSV processing is not implemented yet.
+Version 0.3.0 - Basic CSV loading, parsing, and validation implemented.
+
+The application currently supports a simple comma-separated order format with three columns: OrderId, Customer, and Amount.
+
+Quoted CSV fields, advanced validation, and merging multiple files are not yet supported.
 
 ## Getting Started
 
