@@ -1,96 +1,138 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
+﻿using System.Globalization;
 
-Console.WriteLine("=== CSV Automator ===");
-Console.WriteLine("Version 0.3.0");
-Console.WriteLine();
+string inputDirectory = Path.Combine("Data", "Input");
 
-string csvPath = Path.Combine("Data", "orders.csv");
-
-if (!File.Exists(csvPath))
+if (!Directory.Exists(inputDirectory))
 {
-    Console.WriteLine($"ERROR: File not found: {csvPath}");
+    Console.WriteLine($"Input directory not found: {inputDirectory}");
     return;
 }
 
-string[] lines = File.ReadAllLines(csvPath);
+string[] csvFiles = Directory.GetFiles(inputDirectory, "*.csv").OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
 
-if (lines.Length < 2)
+if (csvFiles.Length == 0)
 {
-    Console.WriteLine("ERROR: CSV file is empty or has no data.");
+    Console.WriteLine("No CSV files found.");
     return;
 }
 
-// Read CSV header
-string[] headers = lines[0].Split(',');
-
-Console.WriteLine("CSV Columns:");
-foreach (string header in headers)
-{
-    Console.WriteLine($"- {header}");
-}
-
-Console.WriteLine();
-
-// Parse CSV rows
 List<Order> orders = new();
 
-for (int i = 1; i < lines.Length; i++)
+Console.WriteLine($"Found {csvFiles.Length} CSV file(s).");
+
+foreach (string csvFile in csvFiles)
 {
-    string[] values = lines[i].Split(',');
+    Console.WriteLine($"\nProcessing: {Path.GetFileName(csvFile)}");
 
-    if (values.Length != 3)
+    string[] lines;
+
+    try
     {
-        Console.WriteLine($"WARNING: Invalid row {i + 1}");
+        lines = File.ReadAllLines(csvFile);
+    }
+    catch (IOException exception)
+    {
+        Console.WriteLine($"Error reading file: {exception.Message}");
+        continue;
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        Console.WriteLine($"Access denied: {exception.Message}");
         continue;
     }
 
-
-    if (!int.TryParse(values[0], out int orderId) || orderId <= 0)
+    for (int i = 1; i < lines.Length; i++)
     {
-        Console.WriteLine($"WARNING: Invalid OrderId on row {i + 1}");
-        continue;
+        string[] columns = lines[i].Split(',');
+
+        if (columns.Length != 3)
+        {
+            Console.WriteLine($"Warning: Invalid column count on line {i + 1}.");
+            continue;
+        }
+
+        if (!int.TryParse(columns[0].Trim(), out int orderId) || orderId <= 0)
+        {
+            Console.WriteLine($"Warning: Invalid OrderId on line {i + 1}.");
+            continue;
+        }
+
+        string customer = columns[1].Trim();
+
+        if (string.IsNullOrWhiteSpace(customer))
+        {
+            Console.WriteLine($"Warning: Empty Customer on line {i + 1}.");
+            continue;
+        }
+
+        if (!decimal.TryParse(columns[2].Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out decimal amount) || amount < 0)
+        {
+            Console.WriteLine($"Warning: Invalid Amount on line {i + 1}.");
+            continue;
+        }
+
+        Order order = new()
+        {
+            OrderId = orderId,
+            Customer = customer,
+            Amount = amount
+        };
+
+        orders.Add(order);
+
+        Console.WriteLine($"Order {order.OrderId}: {order.Customer} - {order.Amount:F2} CZK");
     }
+}
 
-    string customer = values[1].Trim();
+Console.WriteLine($"\nTotal valid orders: {orders.Count}");
 
-    if (string.IsNullOrWhiteSpace(customer))
+if (orders.Count > 0)
+{
+    decimal totalRevenue = orders.Sum(order => order.Amount);
+    decimal averageOrder = orders.Average(order => order.Amount);
+
+    Order largestOrder = orders.OrderByDescending(order => order.Amount).First();
+
+    Console.WriteLine("\n===== SALES REPORT =====");
+    Console.WriteLine($"Total revenue: {totalRevenue:F2} CZK");
+    Console.WriteLine($"Average order: {averageOrder:F2} CZK");
+    Console.WriteLine($"Largest order: {largestOrder.Amount:F2} CZK " + $"({largestOrder.Customer}, ID: {largestOrder.OrderId})");
+
+    // Create the output directory if it does not exist.
+    string outputDirectory = Path.Combine("Data", "Output");
+    Directory.CreateDirectory(outputDirectory);
+
+    string reportPath = Path.Combine(outputDirectory, "sales_report.csv");
+
+    // Generate the CSV report using invariant number formatting.
+    string[] reportLines =
     {
-        Console.WriteLine($"WARNING: Missing customer on row {i + 1}");
-        continue;
-    }
-
-    if (!decimal.TryParse(values[2], NumberStyles.Number, CultureInfo.InvariantCulture, out decimal amount) || amount < 0)
-    {
-        Console.WriteLine($"WARNING: Invalid amount on row {i + 1}");
-        continue;
-    }
-
-
-    Order order = new()
-    {
-        OrderId = orderId,
-        Customer = customer,
-        Amount = amount
+        "Metric,Value",
+        $"TotalOrders,{orders.Count}",
+        $"TotalRevenue,{totalRevenue.ToString("F2", CultureInfo.InvariantCulture)}",
+        $"AverageOrder,{averageOrder.ToString("F2", CultureInfo.InvariantCulture)}",
+        $"LargestOrder,{largestOrder.Amount.ToString("F2", CultureInfo.InvariantCulture)}",
+        $"LargestOrderCustomer,{largestOrder.Customer}",
+        $"LargestOrderId,{largestOrder.OrderId}"
     };
 
-    orders.Add(order);
-    Console.WriteLine();
+    try
+    {
+        File.WriteAllLines(reportPath, reportLines);
+        Console.WriteLine($"\nReport exported successfully: {reportPath}");
+    }
+    catch (IOException exception)
+    {
+        Console.WriteLine($"Error exporting report: {exception.Message}");
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+        Console.WriteLine($"Access denied when exporting report: {exception.Message}");
+    }
+
 }
-
-// Print parsed orders
-Console.WriteLine("Parsed Orders:");
-
-foreach (Order order in orders)
+else
 {
-    Console.WriteLine(
-        $"ID: {order.OrderId} | " +
-        $"Customer: {order.Customer} | " +
-        $"Amount: {order.Amount} CZK"
-    );
+    Console.WriteLine("No valid orders available for the report.");
 }
 
-Console.WriteLine();
-Console.WriteLine($"Successfully parsed {orders.Count} orders.");
