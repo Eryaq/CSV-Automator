@@ -426,3 +426,11 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Local report output
+CsvAutomator/Data/Output/
+
+# Local input files (except sample files)
+CsvAutomator/Data/Input/*
+!CsvAutomator/Data/Input/orders_january.csv
+!CsvAutomator/Data/Input/orders_february.csv
